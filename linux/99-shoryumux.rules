@@ -1,0 +1,15 @@
+# Access to the HORI XInput stick (raw USB) and /dev/uinput for key injection.
+# Install:
+#   sudo cp linux/99-shoryumux.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# Unplug/replug the stick. If uinput still denies access, add your user to group
+# `input` and re-log:  sudo usermod -aG input "$USER"
+
+# Stick USB device (libusb from the login session).
+SUBSYSTEM=="usb", ATTR{idVendor}=="0f0d", ATTR{idProduct}=="01c7", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Drop xpad so shoryumuxd can claim interface 0.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTRS{idVendor}=="0f0d", ATTRS{idProduct}=="01c7", ATTR{bInterfaceNumber}=="00", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/xpad/unbind 2>/dev/null || true'"
+
+# Key injection.
+KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput", TAG+="uaccess"
