@@ -196,9 +196,24 @@ struct Daemon {
     }
 
     static func stop() {
-        if let p = pid(), isOurProcess(p) { kill(p, SIGTERM) }
+        let target = pid().flatMap { isOurProcess($0) ? $0 : nil }
+        if let p = target { kill(p, SIGTERM) }
         child?.terminate()
         child = nil
+        guard let p = target else { return }
+        // Wait for the daemon to actually exit so a subsequent start() is not
+        // skipped by isRunning() while the old process is still shutting down.
+        let deadline = Date().addingTimeInterval(3.0)
+        while kill(p, 0) == 0, Date() < deadline {
+            usleep(50_000)
+        }
+        // Escalate if it is still alive after the grace period.
+        if kill(p, 0) == 0 {
+            kill(p, SIGKILL)
+            while kill(p, 0) == 0, Date() < deadline.addingTimeInterval(1.0) {
+                usleep(50_000)
+            }
+        }
     }
 
     static func install() {
