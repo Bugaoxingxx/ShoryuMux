@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
@@ -12,8 +13,16 @@ struct ContentView: View {
             eventsSection
             Divider()
             setupSection
-            if !model.statusMsg.isEmpty {
-                Text(model.statusMsg).font(.caption).foregroundColor(.accentColor)
+            Divider()
+            HStack {
+                if !model.statusMsg.isEmpty {
+                    Text(model.statusMsg).font(.caption).foregroundColor(.accentColor)
+                    Spacer()
+                } else {
+                    Spacer()
+                }
+                Button("Quit ShoryuMux") { NSApplication.shared.terminate(nil) }
+                    .keyboardShortcut("q")
             }
         }
         .padding(14)

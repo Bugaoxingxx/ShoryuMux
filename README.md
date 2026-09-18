@@ -59,6 +59,8 @@ open build/ShoryuMux.app  # 打开菜单栏 App 做配置
 
 - 让 **cmux（或目标终端）保持在前台**——合成的按键发给当前最前面的窗口。
 - 按摇杆上的键触发对应动作；App 的 **Recent presses** 会实时显示。
+- 菜单栏 App 是后台程序（无 Dock 图标），要退出它点面板底部的 **Quit ShoryuMux**（或 ⌘Q）。
+  退出 App 只关掉配置界面，**不影响守护程序**——守护由 LaunchAgent 单独管理（见「开机自启」）。
 
 ## 配置
 
