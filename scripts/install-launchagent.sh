@@ -45,5 +45,5 @@ echo "  config: $CFGDIR/config.conf"
 echo "  stop:   launchctl bootout gui/$UID_NUM/$LABEL"
 echo
 echo "IMPORTANT: grant Accessibility permission (System Settings -> Privacy &"
-echo "Security -> Accessibility) to the app/terminal that runs shoryumuxd, or"
-echo "keystrokes won't be delivered. Then: launchctl kickstart -k gui/$UID_NUM/$LABEL"
+echo "Security -> Accessibility) to shoryumuxd, or keystrokes won't be delivered."
+echo "Then Stop and Start from the menu-bar app (or: launchctl kickstart -k gui/$UID_NUM/$LABEL)"

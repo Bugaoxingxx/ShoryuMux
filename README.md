@@ -31,6 +31,7 @@ shoryumux/
 运行时文件：
 - 配置：`~/.config/shoryumux/config.conf`
 - pid：`~/.config/shoryumux/shoryumux.pid`
+- 状态：`~/.config/shoryumux/status`（`waiting` / `ready`，给菜单栏 App 读）
 - 事件日志：`~/.config/shoryumux/events.log`
 - 守护二进制：`~/Library/Application Support/ShoryuMux/shoryumuxd`
 - launchd 日志：`~/Library/Logs/ShoryuMux/shoryumuxd.*.log`
@@ -51,7 +52,8 @@ open build/ShoryuMux.app  # 打开菜单栏 App 做配置
 1. 菜单栏 App 里点 **Reveal daemon**（在访达中定位 `shoryumuxd`），
 2. 打开 **系统设置 → 隐私与安全性 → 辅助功能**，把刚定位到的 `shoryumuxd` 文件拖进列表并打勾
    （App 里的 **Open Accessibility settings** 可直接打开该面板），
-3. 回到 App 点 **Reload**（重启守护使权限生效）。
+3. 回到 App 点 **Stop** 再 **Start**（让守护带着新权限重新启动）。
+   **Reload** 只热重载配置，不断开 USB，**不会**刷新辅助功能授权。
 
 > 每次重新编译 `shoryumuxd` 后，二进制内容变化，可能需要重新授权一次。
 
@@ -59,13 +61,14 @@ open build/ShoryuMux.app  # 打开菜单栏 App 做配置
 
 - 让 **cmux（或目标终端）保持在前台**——合成的按键发给当前最前面的窗口。
 - 按摇杆上的键触发对应动作；App 的 **Recent presses** 会实时显示。
+- 没插摇杆时守护保持运行（菜单栏显示 **Waiting for stick**），插上后自动连接。
 - 菜单栏 App 是后台程序（无 Dock 图标），要退出它点面板底部的 **Quit ShoryuMux**（或 ⌘Q）。
-  退出 App 只关掉配置界面，**不影响守护程序**——守护由 LaunchAgent 单独管理（见「开机自启」）。
+  退出 App 会同时停掉守护，摇杆立刻失效。若开了「开机自启」，下次登录 LaunchAgent 仍会把守护拉起来。
 
 ## 配置
 
 一份配置被守护程序和 App 共享：`~/.config/shoryumux/config.conf`。
-可以在菜单栏 App 里可视化编辑（改完点 **Save & Reload**），也可以直接编辑文件后
+可以在菜单栏 App 里可视化编辑（改完点 **Save & Reload**，发送 SIGHUP，不断 USB），也可以直接编辑文件后
 `kill -HUP $(cat ~/.config/shoryumux/shoryumux.pid)` 热重载。
 
 格式：
@@ -114,8 +117,7 @@ launchctl bootout gui/$(id -u)/com.shoryumux.daemon        # 临时停止
 ./scripts/uninstall-launchagent.sh   # 卸载（加 --purge 删二进制和日志）
 ```
 
-> LaunchAgent 在登录时启动（`RunAtLoad`，`KeepAlive=false`）。如果登录时摇杆没插，
-> 守护会退出且不会自动重拉——插上后在 App 里点 **Start**，或重新 `kickstart` 即可。
+> LaunchAgent 在登录时启动（`RunAtLoad`，`KeepAlive=false`）。守护会一直运行：摇杆没插时在后台等待，插上后自动接管；拔掉后也会继续等重连。用 App 的 **Stop** 或 `launchctl bootout` 才会退出。
 
 ## 诊断小工具（core 之外，之前验证用）
 
@@ -125,5 +127,6 @@ launchctl bootout gui/$(id -u)/com.shoryumux.daemon        # 临时停止
 ## 已知限制
 
 - 按键发给**最前面的窗口**，不区分目标 App（v1）。想做「按 App 切换映射」需要额外逻辑。
-- 守护独占 USB 接口：同一时刻只能有一个进程读摇杆（App 不读 USB，靠事件日志显示）。
-- 重新编译守护后可能要重新授予辅助功能权限。
+- 守护独占 USB 接口：同一时刻只能有一个进程读摇杆（App 不读 USB，靠事件日志显示）。第二份 `shoryumuxd` 会因 pid 锁直接退出。
+- 重新编译守护后可能要重新授予辅助功能权限，然后 **Stop + Start**（不是 Reload）。
+- `shell:` 命令在后台执行，不再卡住读杆；但它们仍然跑在登录用户下，配置里请只写你信任的命令。

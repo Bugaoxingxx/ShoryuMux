@@ -23,6 +23,7 @@ struct ContentView: View {
                 }
                 Button("Quit ShoryuMux") { NSApplication.shared.terminate(nil) }
                     .keyboardShortcut("q")
+                    .help("Quits the app and stops the daemon")
             }
         }
         .padding(14)
@@ -33,20 +34,26 @@ struct ContentView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Circle().fill(model.running ? Color.green : Color.secondary)
+                Circle().fill(statusColor)
                     .frame(width: 9, height: 9)
-                Text(model.running ? "Daemon running" : "Daemon stopped").bold()
+                Text(statusTitle).bold()
                 Spacer()
                 Text(model.installed ? "at login: on" : "at login: off")
                     .font(.caption).foregroundColor(.secondary)
             }
             HStack(spacing: 8) {
                 Button("Start") { model.start() }
-                    .disabled(model.running || !model.installed)
+                    .disabled(model.running || !model.installed || model.busy)
                 Button("Stop") { model.stop() }
-                    .disabled(!model.running)
+                    .disabled(!model.running || model.busy)
                 Button("Reload") { model.reloadOnly() }
+                    .disabled(model.busy)
                 Spacer()
+            }
+            if model.running && !model.axTrusted {
+                Text("Accessibility is not granted — keystrokes will not be delivered. Add shoryumuxd (Reveal daemon), then Stop and Start.")
+                    .font(.caption).foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if !model.hasBinary {
                 Text("Daemon binary not installed yet — click “Install at login” below (or run scripts/install-launchagent.sh).")
@@ -113,6 +120,7 @@ struct ContentView: View {
                 Button(model.installed ? "Uninstall at login" : "Install at login") {
                     model.installed ? model.uninstall() : model.install()
                 }
+                .disabled(model.busy)
                 Spacer()
             }
             HStack {
@@ -120,13 +128,23 @@ struct ContentView: View {
                 Button("Reveal daemon") { Daemon.revealDaemon() }
                 Spacer()
             }
-            Text("Grant Accessibility to the shoryumuxd binary: click “Reveal daemon”, drag that file into the Accessibility list, then Reload. Keystrokes go to the frontmost app, so keep cmux focused.")
+            Text("Grant Accessibility to the shoryumuxd binary: click “Reveal daemon”, drag that file into the Accessibility list, then Stop and Start (Reload only re-reads the config). Keystrokes go to the frontmost app, so keep cmux focused.")
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     // MARK: helpers
+    private var statusColor: Color {
+        if !model.running { return .secondary }
+        if model.stickReady { return .green }
+        return .orange
+    }
+    private var statusTitle: String {
+        if !model.running { return "Daemon stopped" }
+        if model.stickReady { return "Stick connected" }
+        return "Waiting for stick"
+    }
     private func binding(for b: String) -> Binding<String> {
         Binding(get: { model.map[b] ?? "" }, set: { model.map[b] = $0 })
     }

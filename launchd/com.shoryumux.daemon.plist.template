@@ -13,6 +13,7 @@
     <true/>
     <key>KeepAlive</key>
     <false/>
+    <!-- Daemon stays up waiting for the stick; no need to restart on USB unplug. -->
     <key>ThrottleInterval</key>
     <integer>10</integer>
     <key>StandardOutPath</key>

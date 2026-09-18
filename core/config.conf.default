@@ -17,7 +17,7 @@
 #
 # Keystrokes go to the FRONTMOST window — keep cmux focused when you press.
 # After editing, reload with:  kill -HUP $(cat ~/.config/shoryumux/shoryumux.pid)
-# (the menu-bar app has a "Reload" button that does this for you)
+# (the menu-bar app has a "Reload" button that sends SIGHUP — USB stays connected)
 
 # ---- agent approval (tune to whatever cmux / your agent expects) ----
 A     = keys: enter            # APPROVE / confirm the highlighted choice
