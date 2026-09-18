@@ -1,0 +1,44 @@
+# ShoryuMux config — map fight-stick buttons to actions.
+#
+# Format:
+#   BUTTON = keys: <token> [token ...]     synthesize keystrokes to the FRONTMOST app
+#   BUTTON = shell: <command>              run a shell command
+#   '#' starts a comment.
+#
+# Key tokens:
+#   letters a-z, digits 0-9, and  - = [ ] \ ; ' , . / `
+#   enter/return  tab  space  esc/escape  delete(backspace)  fdel(forward-delete)
+#   up down left right  home end  pgup pgdn  f1..f12
+# Combos with '+':  cmd+c   shift+up   ctrl+alt+t   cmd+shift+4
+#   modifiers: cmd/command  ctrl/control  opt/alt/option  shift
+#
+# Buttons on this stick:
+#   UP DOWN LEFT RIGHT START BACK L3 R3 LB RB GUIDE A B X Y LT RT
+#
+# Keystrokes go to the FRONTMOST window — keep cmux focused when you press.
+# After editing, reload with:  kill -HUP $(cat ~/.config/shoryumux/shoryumux.pid)
+# (the menu-bar app has a "Reload" button that does this for you)
+
+# ---- agent approval (tune to whatever cmux / your agent expects) ----
+A     = keys: enter            # APPROVE / confirm the highlighted choice
+B     = keys: esc              # REJECT / cancel
+
+# ---- navigate a prompt's options with the lever (DP mode) ----
+UP    = keys: up
+DOWN  = keys: down
+LEFT  = keys: left
+RIGHT = keys: right
+
+# ---- custom shortcuts (edit freely) ----
+X     = keys: cmd+c
+Y     = keys: y enter
+LB    = keys: cmd+t
+RB    = keys: cmd+w
+LT    = keys: cmd+shift+left
+RT    = keys: cmd+shift+right
+
+START = shell: say approved
+BACK  = shell: osascript -e 'display notification "ShoryuMux" with title "cmux"'
+GUIDE = keys: cmd+tab
+L3    = keys: cmd+l
+R3    = keys: cmd+k
