@@ -29,6 +29,11 @@ void sleep_ms(int ms){
 
 int shoryu_pid(void){ return (int)getpid(); }
 
+int shoryu_pid_alive(int pid){
+    if(pid<=0) return 1;
+    return kill((pid_t)pid, 0)==0;
+}
+
 void fire_shell(const char *cmd){
     pid_t pid=fork();
     if(pid<0){ fprintf(stderr,"fork failed: %s\n",strerror(errno)); return; }

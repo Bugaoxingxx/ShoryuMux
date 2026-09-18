@@ -13,7 +13,8 @@
     <true/>
     <key>KeepAlive</key>
     <false/>
-    <!-- Daemon stays up waiting for the stick; no need to restart on USB unplug. -->
+    <!-- Deprecated: shoryumuxd is spawned by ShoryuMux.app with SHORYUMUX_PARENT_PID.
+         This template is no longer installed. -->
     <key>ThrottleInterval</key>
     <integer>10</integer>
     <key>StandardOutPath</key>

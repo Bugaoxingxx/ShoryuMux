@@ -24,6 +24,16 @@ void sleep_ms(int ms){ Sleep((DWORD)ms); }
 
 int shoryu_pid(void){ return (int)GetCurrentProcessId(); }
 
+int shoryu_pid_alive(int pid){
+    HANDLE h; DWORD code=0;
+    if(pid<=0) return 1;
+    h=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)pid);
+    if(!h) return 0;
+    if(!GetExitCodeProcess(h,&code)){ CloseHandle(h); return 0; }
+    CloseHandle(h);
+    return code==STILL_ACTIVE;
+}
+
 void fire_shell(const char *cmd){
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;

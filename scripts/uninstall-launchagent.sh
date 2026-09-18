@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Uninstall the ShoryuMux LaunchAgent (keeps your config by default).
+# Remove leftover daemon LaunchAgent and optionally the installed binary.
+# App login item is unregistered from the menu-bar "Uninstall at login".
 set -euo pipefail
 
-LABEL="com.shoryumux.daemon"
-PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
+OLD_LABEL="com.shoryumux.daemon"
+PLIST_DST="$HOME/Library/LaunchAgents/$OLD_LABEL.plist"
 BINDIR="$HOME/Library/Application Support/ShoryuMux"
 UID_NUM="$(id -u)"
 
-echo "==> Stopping + removing LaunchAgent"
-launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
+echo "==> Stopping leftover daemon LaunchAgent (if any)"
+launchctl bootout "gui/$UID_NUM/$OLD_LABEL" 2>/dev/null || true
 rm -f "$PLIST_DST"
 
 if [ "${1:-}" = "--purge" ]; then
@@ -19,4 +20,4 @@ if [ "${1:-}" = "--purge" ]; then
 else
   echo "==> Binary left at $BINDIR/shoryumuxd (pass --purge to remove)"
 fi
-echo "Uninstalled."
+echo "Uninstalled leftover LaunchAgent."

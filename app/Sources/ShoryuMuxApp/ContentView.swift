@@ -43,7 +43,7 @@ struct ContentView: View {
             }
             HStack(spacing: 8) {
                 Button("Start") { model.start() }
-                    .disabled(model.running || !model.installed || model.busy)
+                    .disabled(model.running || !model.hasBinary || model.busy)
                 Button("Stop") { model.stop() }
                     .disabled(!model.running || model.busy)
                 Button("Reload") { model.reloadOnly() }
@@ -56,7 +56,7 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !model.hasBinary {
-                Text("Daemon binary not installed yet — click “Install at login” below (or run scripts/install-launchagent.sh).")
+                Text("Daemon binary not found — run make / scripts/install-launchagent.sh, then reopen the app.")
                     .font(.caption).foregroundColor(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -128,7 +128,7 @@ struct ContentView: View {
                 Button("Reveal daemon") { Daemon.revealDaemon() }
                 Spacer()
             }
-            Text("Grant Accessibility to the shoryumuxd binary: click “Reveal daemon”, drag that file into the Accessibility list, then Stop and Start (Reload only re-reads the config). Keystrokes go to the frontmost app, so keep cmux focused.")
+            Text("The stick daemon starts with this app and exits with it (Start/Stop pauses it while the app stays open). Grant Accessibility to shoryumuxd: Reveal daemon, drag it into the list, then Stop and Start. “Install at login” opens this app at login, not the daemon alone.")
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

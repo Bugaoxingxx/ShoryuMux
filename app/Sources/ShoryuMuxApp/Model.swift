@@ -1,9 +1,11 @@
 import Foundation
 import Darwin
+import ServiceManagement
 
 // MARK: - Fixed paths & constants
 enum Paths {
-    static let label   = "com.shoryumux.daemon"
+    static let label   = "com.shoryumux.app"
+    static let oldDaemonLabel = "com.shoryumux.daemon"
     static let cfgDir  = NSHomeDirectory() + "/.config/shoryumux"
     static let config  = cfgDir + "/config.conf"
     static let pidFile = cfgDir + "/shoryumux.pid"
@@ -11,10 +13,12 @@ enum Paths {
     static let events  = cfgDir + "/events.log"
     static let binDir  = NSHomeDirectory() + "/Library/Application Support/ShoryuMux"
     static let daemon  = binDir + "/shoryumuxd"
-    static let plist   = NSHomeDirectory() + "/Library/LaunchAgents/" + label + ".plist"
+    static let logDir  = NSHomeDirectory() + "/Library/Logs/ShoryuMux"
+    static let plist   = NSHomeDirectory() + "/Library/LaunchAgents/" + oldDaemonLabel + ".plist"
     static var uidString: String { String(getuid()) }
     static var domain: String { "gui/\(uidString)" }
     static var projectPath: String { BuildConfig.projectPath }
+    static var projectDaemon: String { projectPath + "/build/shoryumuxd" }
 }
 
 // All mappable buttons, in a stable order.
@@ -80,6 +84,9 @@ private func proc_pidpath(_ pid: Int32, _ buffer: UnsafeMutableRawPointer?, _ bu
 
 // MARK: - Daemon control
 struct Daemon {
+    /// Held so the child is not SIGTERM'd when Process deinits.
+    private static var child: Process?
+
     static func pid() -> pid_t? {
         guard let s = try? String(contentsOfFile: Paths.pidFile, encoding: .utf8)
                 .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -96,10 +103,17 @@ struct Daemon {
         guard let p = pid(), kill(p, 0) == 0 else { return false }
         return isOurProcess(p)
     }
-    static var isInstalled: Bool { FileManager.default.fileExists(atPath: Paths.plist) }
-    static var hasBinary: Bool { FileManager.default.fileExists(atPath: Paths.daemon) }
+    static var isInstalled: Bool {
+        if #available(macOS 13.0, *) {
+            if SMAppService.mainApp.status == .enabled { return true }
+        }
+        return FileManager.default.fileExists(atPath: Paths.plist)
+    }
+    static var hasBinary: Bool {
+        FileManager.default.fileExists(atPath: Paths.daemon)
+            || FileManager.default.fileExists(atPath: Paths.projectDaemon)
+    }
 
-    /// Live USB / accessibility snapshot written by the daemon.
     static func snapshot() -> (state: String, ax: Bool) {
         guard let text = try? String(contentsOfFile: Paths.status, encoding: .utf8) else {
             return ("stopped", false)
@@ -113,7 +127,34 @@ struct Daemon {
         return (state, ax)
     }
 
-    /// SIGHUP hot-reload (does not drop USB). Starts the daemon if it isn't up.
+    /// Copy daemon + default config if needed; drop the old unbound LaunchAgent.
+    static func prepare() {
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: Paths.binDir, withIntermediateDirectories: true)
+        try? fm.createDirectory(atPath: Paths.cfgDir, withIntermediateDirectories: true)
+        try? fm.createDirectory(atPath: Paths.logDir, withIntermediateDirectories: true)
+        if !fm.fileExists(atPath: Paths.daemon), fm.fileExists(atPath: Paths.projectDaemon) {
+            try? fm.copyItem(atPath: Paths.projectDaemon, toPath: Paths.daemon)
+        }
+        let seed = Paths.projectPath + "/core/config.conf.default"
+        if !fm.fileExists(atPath: Paths.config), fm.fileExists(atPath: seed) {
+            try? fm.copyItem(atPath: seed, toPath: Paths.config)
+        }
+        retireOldDaemonAgent()
+    }
+
+    private static func retireOldDaemonAgent() {
+        shell("/bin/launchctl", ["bootout", "\(Paths.domain)/\(Paths.oldDaemonLabel)"])
+        try? FileManager.default.removeItem(atPath: Paths.plist)
+    }
+
+    private static func resolvedBinary() -> String? {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: Paths.daemon) { return Paths.daemon }
+        if fm.fileExists(atPath: Paths.projectDaemon) { return Paths.projectDaemon }
+        return nil
+    }
+
     static func reload() {
         if let p = pid(), isRunning() {
             kill(p, SIGHUP)
@@ -121,21 +162,60 @@ struct Daemon {
         }
         start()
     }
+
     static func start() {
-        if isInstalled {
-            shell("/bin/launchctl", ["bootstrap", Paths.domain, Paths.plist])
-            shell("/bin/launchctl", ["kickstart", "-k", "\(Paths.domain)/\(Paths.label)"])
+        prepare()
+        if isRunning() { return }
+        guard let bin = resolvedBinary() else { return }
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: bin)
+        if FileManager.default.fileExists(atPath: Paths.config) {
+            p.arguments = [Paths.config]
+        }
+        var env = ProcessInfo.processInfo.environment
+        env["SHORYUMUX_PARENT_PID"] = String(ProcessInfo.processInfo.processIdentifier)
+        p.environment = env
+
+        func appendHandle(_ path: String) -> FileHandle? {
+            if !FileManager.default.fileExists(atPath: path) {
+                FileManager.default.createFile(atPath: path, contents: nil, attributes: nil)
+            }
+            guard let fh = FileHandle(forWritingAtPath: path) else { return nil }
+            _ = try? fh.seekToEnd()
+            return fh
+        }
+        p.standardOutput = appendHandle(Paths.logDir + "/shoryumuxd.out.log")
+        p.standardError = appendHandle(Paths.logDir + "/shoryumuxd.err.log")
+        do {
+            try p.run()
+            child = p
+        } catch {
+            child = nil
         }
     }
+
     static func stop() {
         if let p = pid(), isOurProcess(p) { kill(p, SIGTERM) }
-        shell("/bin/launchctl", ["kill", "SIGTERM", "\(Paths.domain)/\(Paths.label)"])
+        child?.terminate()
+        child = nil
     }
+
     static func install() {
+        prepare()
         shell("/bin/bash", [Paths.projectPath + "/scripts/install-launchagent.sh"])
+        retireOldDaemonAgent()
+        if #available(macOS 13.0, *) {
+            try? SMAppService.mainApp.register()
+        }
     }
+
     static func uninstall() {
+        if #available(macOS 13.0, *) {
+            try? SMAppService.mainApp.unregister()
+        }
         shell("/bin/bash", [Paths.projectPath + "/scripts/uninstall-launchagent.sh"])
+        retireOldDaemonAgent()
     }
     static func openAccessibilitySettings() {
         shell("/usr/bin/open", ["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])

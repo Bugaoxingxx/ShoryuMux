@@ -7,7 +7,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ShoryuMuxApp",
-            path: "Sources/ShoryuMuxApp"
+            path: "Sources/ShoryuMuxApp",
+            linkerSettings: [
+                .linkedFramework("ServiceManagement")
+            ]
         )
     ]
 )

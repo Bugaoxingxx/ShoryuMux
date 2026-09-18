@@ -2,6 +2,10 @@ import SwiftUI
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Daemon.start()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         Daemon.stop()
     }

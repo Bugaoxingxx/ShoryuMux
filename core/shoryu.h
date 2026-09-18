@@ -85,6 +85,7 @@ void fire_shell(const char *cmd);
 int  acquire_singleton(void);
 void release_singleton(void);
 int  shoryu_pid(void);
+int  shoryu_pid_alive(int pid);
 
 void xinput_decode_report(const uint8_t *d, int cur[B_COUNT]);
 

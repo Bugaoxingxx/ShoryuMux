@@ -29,7 +29,7 @@ shoryumux/
 ├── linux/99-shoryumux.rules
 ├── CMakeLists.txt        # Windows（也可用在 Unix）
 ├── app/                  # macOS SwiftUI 菜单栏（其它平台用 CLI）
-├── launchd/              # macOS LaunchAgent
+├── launchd/              # 旧 daemon LaunchAgent 模板（已不再安装；开机自启改走 App）
 └── scripts/              # macOS 安装 / 构建 App
 ```
 
@@ -49,16 +49,20 @@ shoryumux/
 ```bash
 cd ~/ShoryuMux
 make                     # 守护 + 菜单栏 App
-./scripts/install-launchagent.sh
-open build/ShoryuMux.app
+./scripts/install-launchagent.sh   # 只安装 shoryumuxd 二进制和默认配置
+open build/ShoryuMux.app           # 打开 App；守护作为子进程一起起来
 ```
 
-发按键的进程是 **`shoryumuxd`**，不是 App：
+菜单栏 App 和 `shoryumuxd` **绑定**：App 启动才拉起守护，Quit / ⌘Q（或 App 崩溃）守护跟着退出。Start/Stop 只是在 App 还开着时暂停/恢复读杆。
+
+发按键的进程仍是 **`shoryumuxd`**：
 
 1. 菜单栏点 **Reveal daemon**，把 `shoryumuxd` 拖进 **系统设置 → 隐私与安全性 → 辅助功能**，
 2. **Stop** 再 **Start**（**Reload** 只热重载配置，不刷新辅助功能）。
 
-重编二进制后可能要重新授权。Quit App 会停掉守护；若开了开机自启，下次登录 LaunchAgent 仍会拉起守护。
+**Install at login** 注册的是 **App**（`SMAppService`），不是单独的守护。下次登录只开菜单栏，再由 App 拉起进程。
+
+重编二进制后可能要重新授权辅助功能。
 
 ### Linux
 
@@ -139,18 +143,18 @@ START = shell: say approved
 # Ctrl-C 退出；Unix: kill -HUP <pid> 热重载
 ```
 
-没插摇杆时守护保持运行并等待重连。
+没插摇杆时守护保持运行并等待重连。macOS 上若用 App 启动，给守护设置了 `SHORYUMUX_PARENT_PID`，父进程消失时守护会自行退出。命令行直接跑 `./build/shoryumuxd` 则不绑定父进程。
 
 ## macOS 开机自启
 
+开机自启 = 打开 **ShoryuMux.app**（在菜单栏点 **Install at login**）。不要再给 `shoryumuxd` 单独装 LaunchAgent。
+
 ```bash
-./scripts/install-launchagent.sh
-launchctl kickstart -k gui/$(id -u)/com.shoryumux.daemon
-launchctl bootout gui/$(id -u)/com.shoryumux.daemon
-./scripts/uninstall-launchagent.sh   # --purge 连二进制和日志一起删
+./scripts/install-launchagent.sh     # 安装二进制；并卸掉旧的 com.shoryumux.daemon
+./scripts/uninstall-launchagent.sh   # 卸掉残留 LaunchAgent（加 --purge 删二进制和日志）
 ```
 
-LaunchAgent：`RunAtLoad`，`KeepAlive=false`。守护自己等杆，不靠 launchd 重启。
+若以前装过 `com.shoryumux.daemon`，第一次打开新 App 会把它 bootout 掉，避免守护在没 App 时自己跑。需要登录自启请重新点一次 **Install at login**。
 
 ## 已知限制
 
@@ -160,7 +164,7 @@ LaunchAgent：`RunAtLoad`，`KeepAlive=false`。守护自己等杆，不靠 laun
 - Linux：不保证每个 Wayland 合成器的「全局热键」语义，只做 uinput 注入。
 - Windows：标准 XInput 可能看不到 GUIDE。
 - `shell:` 跑在当前用户下，只写你信任的命令。
-- Linux/Windows 开机自启未打包进第一期；菜单栏 UI 目前仅 macOS。
+- Linux/Windows 开机自启未打包进第一期；菜单栏 UI 目前仅 macOS。macOS 上守护默认随 App 生死。
 
 ## 许可证
 
