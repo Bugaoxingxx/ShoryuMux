@@ -161,3 +161,7 @@ LaunchAgent：`RunAtLoad`，`KeepAlive=false`。守护自己等杆，不靠 laun
 - Windows：标准 XInput 可能看不到 GUIDE。
 - `shell:` 跑在当前用户下，只写你信任的命令。
 - Linux/Windows 开机自启未打包进第一期；菜单栏 UI 目前仅 macOS。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 Bugaoxingxx
